@@ -5,6 +5,8 @@ from docx import Document
 
 from .rules import normalize_whitespace, split_candidates_by_type
 from .ai import normalize_sigla, guess_is_name
+from app.csv_writer import write_cne_csv
+from app.utils_text import sanitize_rows
 
 CSV_COLUMNS = ["DTMNFR","ORGAO","TIPO","SIGLA","SIMBOLO","NOME_LISTA","NUM_ORDEM","NOME_CANDIDATO","PARTIDO_PROPONENTE","INDEPENDENTE"]
 
@@ -133,10 +135,12 @@ def extract_to_csv(in_path: str, out_csv: str, orgao: Optional[str]=None, ord_re
                 ord_reset=ord_reset,
                 enable_ia=False
             ))
-    df = pd.DataFrame(all_rows, columns=CSV_COLUMNS).fillna("")
+    safe_rows = sanitize_rows(all_rows)
+    df = pd.DataFrame(safe_rows, columns=CSV_COLUMNS).fillna("")
     if not df.empty:
         df = df.sort_values(by=["ORGAO","SIGLA","TIPO","NOME_LISTA","NUM_ORDEM","NOME_CANDIDATO"]).reset_index(drop=True)
-    df.to_csv(out_csv, index=False, sep=";", encoding="utf-8")
+    final_rows = df.to_dict("records")
+    write_cne_csv(final_rows, out_csv)
     return {
         "rows": int(df.shape[0]),
         "orgoes": sorted(list(set(df["ORGAO"].unique()))) if "ORGAO" in df else [],
