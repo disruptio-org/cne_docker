@@ -1,1 +1,0 @@
-Coloque os ficheiros DOCX/CSV em ./data e corra docker compose -f docker-compose.min.yml up --build
