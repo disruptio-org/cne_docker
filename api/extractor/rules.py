@@ -17,7 +17,8 @@ def clean_lines(t: str) -> List[str]:
     for l in t.splitlines():
         x = l.strip()
         x = re.sub(r'^\s*[\-–—•]*\s*', '', x)      # bullets
-        x = re.sub(r'^\s*\d+\s*[.)-]\s*', '', x)   # 1. 1) 1- etc.
+        # remove prefixos de numeração (1., 1), 1-, 1º, 1.º, 1° etc.)
+        x = re.sub(r'^\s*\d+(?:\s*[\.\)\-º°]+)+\s*', '', x)
         x = x.strip(" -–—;:")
         if x and not x.lower().startswith("nota"):
             lines.append(x)
