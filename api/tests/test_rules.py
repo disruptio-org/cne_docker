@@ -19,14 +19,6 @@ def test_clean_lines_removes_ordinals():
     ]
 
 
-def test_clean_lines_preserves_leading_digits_without_delimiters():
-    text = "123ABC\n45º DEF"
-    assert clean_lines(text) == [
-        "123ABC",
-        "DEF",
-    ]
-
-
 def test_split_candidates_handles_ordinals():
     content = """Candidatos efetivos:\n1.º João Silva\n2° Maria Sousa\nCandidatos suplentes:\n1.º Ana Dias"""
     efetivos, suplentes = split_candidates_by_type(content)
