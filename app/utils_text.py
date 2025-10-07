@@ -85,8 +85,11 @@ def clean_text(value: Optional[str]) -> str:
         except Exception:
             pass
 
+    text = _apply_explicit_fixes(text)
+
     if looks_mojibake(text):
         decoded = _latin1_to_utf8(text)
+        decoded = _apply_explicit_fixes(decoded)
         text = _prefer_candidate(text, decoded)
 
     text = _apply_explicit_fixes(text)
