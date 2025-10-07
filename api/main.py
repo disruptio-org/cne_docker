@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Query
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -39,7 +39,9 @@ async def extract(
     operator: str = Form(...),
     orgao: Optional[str] = Form(None),
     ord_reset: bool = Form(True),
-    enable_ia: bool = Form(True)
+    enable_ia: bool = Form(True),
+    excel_compat: bool = Query(False),
+    encoding: Optional[str] = Query(None),
 ):
     if operator not in ("A", "B"):
         raise HTTPException(status_code=400, detail="operator deve ser 'A' ou 'B'")
@@ -51,9 +53,15 @@ async def extract(
         f.write(await file.read())
 
     out_csv = os.path.join(APP_DATA, f"extract_{operator}_{ts}.csv")
+    csv_encoding = encoding or ("cp1252" if excel_compat else "utf-8-sig")
     result = extract_to_csv(
-        in_path, out_csv,
-        orgao=orgao, ord_reset=ord_reset, enable_ia=enable_ia, models_dir=MODEL_PATH
+        in_path,
+        out_csv,
+        orgao=orgao,
+        ord_reset=ord_reset,
+        enable_ia=enable_ia,
+        models_dir=MODEL_PATH,
+        encoding=csv_encoding,
     )
 
     return JSONResponse({

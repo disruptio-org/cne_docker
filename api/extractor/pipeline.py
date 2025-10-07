@@ -111,7 +111,15 @@ def to_rows_from_block(header_line: str, content: str, orgao_hint: str, dtmnfr: 
             rows.append(build_row(3, n, c)); n += 1
     return rows
 
-def extract_to_csv(in_path: str, out_csv: str, orgao: Optional[str]=None, ord_reset: bool=True, enable_ia: bool=True, models_dir: Optional[str]=None) -> Dict:
+def extract_to_csv(
+    in_path: str,
+    out_csv: str,
+    orgao: Optional[str] = None,
+    ord_reset: bool = True,
+    enable_ia: bool = True,
+    models_dir: Optional[str] = None,
+    encoding: str = "utf-8-sig",
+) -> Dict:
     dtmnfr = infer_dtmnfr_from_path(in_path)
     text = parse_docx(in_path)
     blocks = extract_blocks_with_orgao(text)
@@ -140,7 +148,7 @@ def extract_to_csv(in_path: str, out_csv: str, orgao: Optional[str]=None, ord_re
     if not df.empty:
         df = df.sort_values(by=["ORGAO","SIGLA","TIPO","NOME_LISTA","NUM_ORDEM","NOME_CANDIDATO"]).reset_index(drop=True)
     final_rows = df.to_dict("records")
-    write_cne_csv(final_rows, out_csv)
+    write_cne_csv(final_rows, out_csv, encoding=encoding)
     return {
         "rows": int(df.shape[0]),
         "orgoes": sorted(list(set(df["ORGAO"].unique()))) if "ORGAO" in df else [],
