@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# app/utils_text.py — Reparação robusta de mojibake + normalização NFC
+"""Utilities for cleaning mojibake-heavy text extracted from DOCX files."""
 
 from typing import Optional, Any, Dict, List
 import unicodedata as ud
@@ -7,100 +7,99 @@ import re
 
 try:
     from ftfy import fix_text as _fix_text
-except Exception:
+except Exception:  # pragma: no cover - ftfy is optional at runtime
     _fix_text = None
 
-# Tokens típicos de mojibake quando UTF-8 é lido como Latin-1/CP1252
 MOJIBAKE_TOKENS = ("Ã", "Â", "â", "�")
-
-# Pontuação errada comum
 EXPLICIT_FIXES = [
-    (re.compile(r"â€“"), "–"),   # en dash
-    (re.compile(r"â€”"), "—"),   # em dash
+    (re.compile(r"â€“"), "–"),
+    (re.compile(r"â€”"), "—"),
     (re.compile(r"â€œ"), "“"),
     (re.compile(r"â€\u009d?"), "”"),
     (re.compile(r"â€˜"), "‘"),
     (re.compile(r"â€™"), "’"),
     (re.compile(r"â€"), "€"),
 ]
+_ACCENT_RE = re.compile(r"[áéíóúâêôãõçÁÉÍÓÚÂÊÔÃÕÇ]")
 
-PT_ACCENTS = "áéíóúâêôãõçÁÉÍÓÚÂÊÔÃÕÇ"
 
-def looks_mojibake(s: str) -> bool:
-    return bool(s) and any(tok in s for tok in MOJIBAKE_TOKENS)
+def looks_mojibake(value: str) -> bool:
+    """Returns True when typical mojibake glyphs are found in *value*."""
+    return bool(value) and any(tok in value for tok in MOJIBAKE_TOKENS)
 
-def _explicit_fixes(s: str) -> str:
-    out = s
-    for pat, rep in EXPLICIT_FIXES:
-        out = pat.sub(rep, out)
-    return out
 
-def _score_quality(s: str) -> int:
-    """Maior é melhor: penaliza mojibake, recompensa acentos PT válidos."""
-    if not s:
-        return -10**6
-    score = 0
-    # penaliza tokens de mojibake
-    for tok in MOJIBAKE_TOKENS:
-        score -= s.count(tok) * 5
-    # recompensa presença de acentos PT reais
-    for ch in PT_ACCENTS:
-        score += s.count(ch)
-    # pequeno bónus por ausência total de mojibake
-    if not looks_mojibake(s):
-        score += 3
-    return score
+def _apply_explicit_fixes(value: str) -> str:
+    fixed = value
+    for pattern, replacement in EXPLICIT_FIXES:
+        fixed = pattern.sub(replacement, fixed)
+    return fixed
 
-def _fix_chain_candidates(s: str) -> List[str]:
-    """Gera candidatos de reparação; o melhor (por score) é escolhido."""
-    cands = []
-    # A) original normalizado
-    cands.append(ud.normalize("NFC", s))
 
-    # B) ftfy (se disponível)
+def _latin1_to_utf8(value: str) -> str:
+    try:
+        return value.encode("latin-1", "ignore").decode("utf-8", "ignore")
+    except Exception:
+        return value
+
+
+def _prefer_candidate(current: str, candidate: str) -> str:
+    """Pick whichever text looks cleaner (fewer mojibake markers, more accents)."""
+    if not candidate:
+        return current
+    candidate = candidate.strip()
+    current = current.strip()
+    if not candidate:
+        return current
+
+    current_bad = looks_mojibake(current)
+    candidate_bad = looks_mojibake(candidate)
+    if current_bad and not candidate_bad:
+        return candidate
+    if candidate_bad and not current_bad:
+        return current
+
+    current_repl = sum(current.count(tok) for tok in MOJIBAKE_TOKENS)
+    candidate_repl = sum(candidate.count(tok) for tok in MOJIBAKE_TOKENS)
+    if candidate_repl < current_repl:
+        return candidate
+
+    current_accents = len(_ACCENT_RE.findall(current))
+    candidate_accents = len(_ACCENT_RE.findall(candidate))
+    if candidate_accents > current_accents:
+        return candidate
+
+    return candidate if candidate != current else current
+
+
+def clean_text(value: Optional[str]) -> str:
+    """Fixes mojibake artefacts and normalises the output to NFC."""
+    if value is None:
+        return ""
+
+    text = str(value)
+
     if _fix_text:
         try:
-            cands.append(ud.normalize("NFC", _fix_text(s)))
+            fixed = _fix_text(text)
+            text = _prefer_candidate(text, fixed)
         except Exception:
             pass
 
-    # C) tentativa clássica latin1->utf8
-    try:
-        cands.append(ud.normalize("NFC", s.encode("latin-1", "ignore").decode("utf-8", "ignore")))
-    except Exception:
-        pass
+    if looks_mojibake(text):
+        decoded = _latin1_to_utf8(text)
+        text = _prefer_candidate(text, decoded)
 
-    # D) fixes explícitos
-    cands.append(ud.normalize("NFC", _explicit_fixes(s)))
+    text = _apply_explicit_fixes(text)
+    text = ud.normalize("NFC", text)
+    return text.strip()
 
-    # Remover duplicados mantendo ordem
-    seen = set()
-    uniq = []
-    for c in cands:
-        if c not in seen:
-            seen.add(c)
-            uniq.append(c)
-    return uniq
-
-def clean_text(s: Optional[str]) -> str:
-    """Limpa mojibake e normaliza para NFC. Sempre tenta melhorar."""
-    if s is None:
-        return ""
-    raw = str(s)
-    # Gera candidatos e escolhe o de melhor qualidade
-    cands = _fix_chain_candidates(raw)
-    best = max(cands, key=_score_quality)
-    return best.strip()
 
 def sanitize_rows(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """Aplica clean_text a todas as strings em todas as linhas (dict->str)."""
-    out: List[Dict[str, Any]] = []
-    for r in rows:
-        fixed: Dict[str, Any] = {}
-        for k, v in r.items():
-            if isinstance(v, str):
-                fixed[k] = clean_text(v)
-            else:
-                fixed[k] = v
-        out.append(fixed)
-    return out
+    """Returns a deep copy of ``rows`` with ``clean_text`` applied to all strings."""
+    sanitized: List[Dict[str, Any]] = []
+    for row in rows:
+        cleaned: Dict[str, Any] = {}
+        for key, value in row.items():
+            cleaned[key] = clean_text(value) if isinstance(value, str) else value
+        sanitized.append(cleaned)
+    return sanitized
