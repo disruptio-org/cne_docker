@@ -6,7 +6,7 @@ from docx import Document
 from .rules import normalize_whitespace, split_candidates_by_type
 from .ai import normalize_sigla, guess_is_name
 from app.csv_writer import write_cne_csv
-from app.utils_text import sanitize_rows
+from app.utils_text import clean_text, sanitize_rows
 
 CSV_COLUMNS = ["DTMNFR","ORGAO","TIPO","SIGLA","SIMBOLO","NOME_LISTA","NUM_ORDEM","NOME_CANDIDATO","PARTIDO_PROPONENTE","INDEPENDENTE"]
 
@@ -17,14 +17,14 @@ def parse_docx(path: str) -> str:
     doc = Document(path)
     lines = []
     for p in doc.paragraphs:
-        txt = p.text.strip()
+        txt = clean_text(p.text.strip())
         if txt:
             lines.append(txt)
     for tbl in doc.tables:
         for row in tbl.rows:
             for cell in row.cells:
                 for p in cell.paragraphs:
-                    txt = p.text.strip()
+                    txt = clean_text(p.text.strip())
                     if txt:
                         lines.append(txt)
     return normalize_whitespace("\n".join(lines))
