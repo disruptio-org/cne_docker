@@ -130,8 +130,8 @@ async def extract(
     write_cne_csv(safe_rows, out_csv, encoding=csv_encoding)
 
     qa_path = None
-    if qa:
-        qa_path, _ = write_qa_csv(
+    if qa or suspect_rows:
+        qa_path, suspect_rows = write_qa_csv(
             safe_rows,
             out_csv,
             metadata=pipeline_meta,
