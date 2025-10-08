@@ -1,5 +1,3 @@
-"""Tests for :mod:`app.csv_writer`."""
-
 from pathlib import Path
 import sys
 
@@ -10,6 +8,7 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 from app.csv_writer import write_cne_csv
+from app.qa import collect_suspect_rows, write_qa_csv
 
 
 def _base_row() -> dict:
@@ -27,25 +26,31 @@ def _base_row() -> dict:
     }
 
 
-def test_write_cne_csv_creates_empty_qa_when_clean(tmp_path: Path) -> None:
+def test_write_qa_csv_creates_empty_file_when_clean(tmp_path: Path) -> None:
+    rows = [_base_row()]
     out_path = tmp_path / "clean.csv"
-    write_cne_csv([_base_row()], str(out_path))
+    write_cne_csv(rows, str(out_path))
 
-    qa_path = out_path.with_name(f"{out_path.stem}_qa.csv")
-    assert qa_path.exists()
+    qa_path, suspects = write_qa_csv(rows, str(out_path))
+    assert Path(qa_path).exists()
+    assert not suspects
 
     qa_df = pd.read_csv(qa_path, sep=";")
     assert qa_df.empty
 
 
-def test_write_cne_csv_lists_rows_with_residual_mojibake(tmp_path: Path) -> None:
+def test_collect_suspect_rows_flags_mojibake(tmp_path: Path) -> None:
     bad_row = _base_row()
     bad_row["NOME_LISTA"] = "Ã"
 
     out_path = tmp_path / "bad.csv"
     write_cne_csv([bad_row], str(out_path))
 
-    qa_path = out_path.with_name(f"{out_path.stem}_qa.csv")
+    suspects = collect_suspect_rows([bad_row])
+    assert len(suspects) == 1
+    assert "mojibake:NOME_LISTA" in suspects[0]["_qa_reason"]
+
+    qa_path, _ = write_qa_csv([bad_row], str(out_path), suspects=suspects)
     qa_df = pd.read_csv(qa_path, sep=";")
 
     assert len(qa_df) == 1
