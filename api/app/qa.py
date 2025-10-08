@@ -79,6 +79,8 @@ def _gather_fieldnames(rows: Iterable[Dict[str, Any]]) -> List[str]:
             seen.add(extra)
     return ordered
 
+QA_OUTPUT_DIR = Path("/app/out")
+
 
 def write_qa_csv(
     rows: Sequence[Dict[str, Any]],
@@ -88,10 +90,10 @@ def write_qa_csv(
     suspects: Optional[Sequence[Dict[str, Any]]] = None,
     encoding: str = "utf-8-sig",
 ) -> Tuple[str, List[Dict[str, Any]]]:
-    """Persist a QA CSV next to ``output_csv_path`` and return its location."""
+    """Persist a QA CSV in ``/app/out`` and return its location."""
 
-    qa_path = Path(output_csv_path)
-    qa_path = qa_path.with_name(f"{qa_path.stem}_qa.csv")
+    qa_name = f"{Path(output_csv_path).stem}_qa.csv"
+    qa_path = QA_OUTPUT_DIR / qa_name
     qa_path.parent.mkdir(parents=True, exist_ok=True)
 
     suspect_rows = list(suspects) if suspects is not None else collect_suspect_rows(

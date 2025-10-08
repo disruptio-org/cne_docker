@@ -43,6 +43,22 @@ def test_write_qa_csv_creates_empty_file_when_clean(tmp_path: Path) -> None:
     qa_df = pd.read_csv(qa_path, sep=";")
     assert qa_df.empty
 
+    Path(qa_path).unlink()
+
+
+def test_write_qa_csv_default_location() -> None:
+    rows = [_base_row()]
+    out_path = Path("/tmp/out.csv")
+
+    qa_path, _ = write_qa_csv(rows, str(out_path))
+    qa_path_obj = Path(qa_path)
+
+    assert qa_path_obj.parent == Path("/app/out")
+    assert qa_path_obj.name == f"{out_path.stem}_qa.csv"
+    assert qa_path_obj.exists()
+
+    qa_path_obj.unlink()
+
 
 def test_collect_suspect_rows_flags_mojibake(tmp_path: Path) -> None:
     bad_row = _base_row()
@@ -60,6 +76,8 @@ def test_collect_suspect_rows_flags_mojibake(tmp_path: Path) -> None:
 
     assert len(qa_df) == 1
     assert qa_df.iloc[0]["NOME_LISTA"] == "Ã"
+
+    Path(qa_path).unlink()
 
 
 def test_write_cne_csv_uses_utf8_sig_and_semicolon(tmp_path: Path) -> None:
