@@ -19,6 +19,7 @@ CNE_COLS = [
     "PARTIDO_PROPONENTE",
     "INDEPENDENTE",
 ]
+
 def write_cne_csv(
     rows: List[Dict[str, str]],
     out_path: str,

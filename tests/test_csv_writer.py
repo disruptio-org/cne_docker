@@ -1,13 +1,18 @@
+import codecs
 from pathlib import Path
 import sys
 
 import pandas as pd
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
-if str(ROOT_DIR) not in sys.path:
-    sys.path.insert(0, str(ROOT_DIR))
+API_DIR = ROOT_DIR / "api"
 
-from app.csv_writer import write_cne_csv
+for candidate in (ROOT_DIR, API_DIR):
+    candidate_str = str(candidate)
+    if candidate_str not in sys.path:
+        sys.path.insert(0, candidate_str)
+
+from app.csv_writer import CNE_COLS, write_cne_csv
 from app.qa import collect_suspect_rows, write_qa_csv
 
 
@@ -55,3 +60,21 @@ def test_collect_suspect_rows_flags_mojibake(tmp_path: Path) -> None:
 
     assert len(qa_df) == 1
     assert qa_df.iloc[0]["NOME_LISTA"] == "Ã"
+
+
+def test_write_cne_csv_uses_utf8_sig_and_semicolon(tmp_path: Path) -> None:
+    out_path = tmp_path / "out.csv"
+    write_cne_csv([_base_row()], str(out_path))
+
+    raw = out_path.read_bytes()
+    assert raw.startswith(codecs.BOM_UTF8)
+
+    text = raw.decode("utf-8-sig")
+    header, *rows = text.splitlines()
+
+    assert header.split(";") == CNE_COLS
+    assert len(CNE_COLS) == 10
+
+    assert rows
+    first_row = rows[0]
+    assert ";" in first_row
