@@ -26,3 +26,30 @@ Para ensinar o motor de NER, siga sempre o mesmo ciclo. Cada iteração garante 
    - Com o modelo treinado, execute `use_ner --model models/model_XXX --input data/corpus_XXX.jsonl --output outputs/predictions_XXX.csv`.
 
 Seguir estes passos garante que o motor seja ensinado de forma consistente, facilitando auditoria e reprodução dos resultados.
+
+## Resolução de problemas comuns
+
+### Erro `open //./pipe/dockerDesktopLinuxEngine`
+
+Ao executar `docker compose -f docker-compose.min.yml up --build -d` no Windows, você pode ver a mensagem:
+
+```
+open //./pipe/dockerDesktopLinuxEngine: The system cannot find the file specified.
+```
+
+Esse erro indica que o Docker Engine não está acessível pelo Docker Desktop. Para corrigir:
+
+1. **Verifique se o Docker Desktop está aberto**
+   - Inicie o Docker Desktop manualmente. Aguarde até que o ícone na bandeja de sistema indique "Docker Desktop is running".
+
+2. **Confirme o funcionamento do WSL 2** (necessário para o Docker Desktop no Windows)
+   - Execute no PowerShell (como usuário comum) `wsl --status`. Caso o WSL 2 não esteja instalado ou atualizado, siga as instruções exibidas para concluir a instalação.
+   - Reinicie o computador se solicitado.
+
+3. **Teste a conexão com o Docker Engine**
+   - Rode `docker version` ou `docker info`. Se os comandos retornarem informações do servidor, tente novamente o `docker compose -f docker-compose.min.yml up --build -d`.
+
+4. **Reinicie os serviços do Docker Desktop**
+   - Se o erro persistir, utilize a opção **Troubleshoot → Restart Docker Desktop** no aplicativo ou finalize o processo `Docker Desktop.exe` e abra-o novamente.
+
+Após essas etapas, o Docker Compose deve conseguir baixar a imagem `cne/api:fixed-v2` e iniciar os contêineres normalmente.
