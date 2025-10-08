@@ -8,7 +8,7 @@ Corrige:
   - PARTIDO_PROPONENTE (procura "proposto por ..."; fallback em coligações)
 """
 
-from typing import List, Dict
+from typing import Any, Dict, List, Tuple
 from app.utils_text import clean_text
 from api.extractor.pipeline import parse_docx
 from api.extractor.rules import clean_lines, normalize_whitespace
@@ -67,7 +67,7 @@ def _sanitize_row(row: Dict[str, str]) -> Dict[str, str]:
     row["SIGLA"] = clean_text(row.get("SIGLA", ""))
     return row
 
-def process_document_lines(lines: List[str]) -> List[Dict[str, str]]:
+def process_document_lines(lines: List[str]) -> Tuple[List[Dict[str, str]], Dict[str, Any]]:
     ctx = ListContext(orgao=None, sigla=None, nome_lista=None, simbolo=None, needs_review=0)
     out_rows: List[Dict[str, str]] = []
 
@@ -124,4 +124,5 @@ def process_document_lines(lines: List[str]) -> List[Dict[str, str]]:
 
     # Passagem final (belt-and-braces)
     out_rows = [_sanitize_row(r) for r in out_rows]
-    return out_rows
+    metadata: Dict[str, Any] = {"needs_review": bool(ctx.needs_review)}
+    return out_rows, metadata

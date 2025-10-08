@@ -9,11 +9,13 @@ from app.extract_pipeline import linearize_document_to_lines, process_document_l
 from app.learn.infer import predict_rows
 from app.csv_writer import write_cne_csv
 from app.utils_text import sanitize_rows
+from app.qa import collect_suspect_rows, write_qa_csv
 from api.extractor.pipeline import infer_dtmnfr_from_path
 from utils.diff import diff_csvs, validate_csv_schema
 
 APP_DATA = os.environ.get("APP_DATA", "/app/data")
 MODEL_PATH = os.environ.get("MODEL_PATH", "/app/models")
+STRICT_TEMPLATES = os.environ.get("STRICT_TEMPLATES", "").lower() in {"1", "true", "yes", "on"}
 
 app = FastAPI(title="CNE On-Prem Extractor (Fixed V2)", version="0.4.0")
 
@@ -47,6 +49,7 @@ async def extract(
     use_ner: bool = Form(False),
     excel_compat: bool = Query(False),
     encoding: Optional[str] = Query(None),
+    qa: bool = Query(False),
 ):
     if operator not in ("A", "B"):
         raise HTTPException(status_code=400, detail="operator deve ser 'A' ou 'B'")
@@ -61,14 +64,15 @@ async def extract(
     csv_encoding = encoding or ("cp1252" if excel_compat else "utf-8-sig")
     lines = linearize_document_to_lines(in_path, enable_ia=enable_ia)
 
+    pipeline_meta = {"needs_review": False}
     if use_ner:
         ner_model_dir = os.path.join(MODEL_PATH, "ner_pt") if MODEL_PATH else "/app/models/ner_pt"
         rows = predict_rows(lines, model_dir=ner_model_dir)
     else:
-        rows = process_document_lines(lines)
+        rows, pipeline_meta = process_document_lines(lines)
         if enable_ia and not rows:
             fallback_lines = linearize_document_to_lines(in_path, enable_ia=False)
-            rows = process_document_lines(fallback_lines)
+            rows, pipeline_meta = process_document_lines(fallback_lines)
 
     dtmnfr = infer_dtmnfr_from_path(in_path)
 
@@ -111,7 +115,26 @@ async def extract(
             item["NUM_ORDEM"] = str(counters[key])
 
     safe_rows = sanitize_rows(processed_rows)
+    suspect_rows = collect_suspect_rows(safe_rows, metadata=pipeline_meta)
+
+    if STRICT_TEMPLATES and (not safe_rows or suspect_rows):
+        detail = {
+            "error": "classificacao_fraca",
+            "rows": len(safe_rows),
+            "suspeitos": len(suspect_rows),
+        }
+        raise HTTPException(status_code=422, detail=detail)
+
     write_cne_csv(safe_rows, out_csv, encoding=csv_encoding)
+
+    qa_path = None
+    if qa:
+        qa_path, _ = write_qa_csv(
+            safe_rows,
+            out_csv,
+            metadata=pipeline_meta,
+            suspects=suspect_rows,
+        )
 
     orgoes = sorted({row.get("ORGAO", "") for row in safe_rows if row.get("ORGAO")})
     siglas = sorted({row.get("SIGLA", "") for row in safe_rows if row.get("SIGLA")})
@@ -121,7 +144,9 @@ async def extract(
         "output_csv": out_csv,
         "rows": len(safe_rows),
         "orgoes": orgoes,
-        "siglas": siglas
+        "siglas": siglas,
+        "qa_csv": qa_path,
+        "suspeitos": len(suspect_rows),
     })
 
 @app.post("/merge")
