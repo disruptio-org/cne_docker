@@ -8,8 +8,8 @@ from pathlib import Path
 from typing import Iterable, List, Sequence
 
 from app.utils_text import clean_text
-from api.extractor.rules import clean_lines, normalize_whitespace
-from api.extractor.pipeline import parse_docx
+from extractor.rules import clean_lines, normalize_whitespace
+from extractor.pipeline import parse_docx
 
 
 def _ensure_directory(path: Path) -> None:
