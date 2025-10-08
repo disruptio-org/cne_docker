@@ -10,6 +10,8 @@ Corrige:
 
 from typing import List, Dict
 from app.utils_text import clean_text
+from api.extractor.pipeline import parse_docx
+from api.extractor.rules import clean_lines, normalize_whitespace
 from app.utils_listctx import ListContext, detect_orgao, is_new_list_heading
 from app.utils_party import (
     find_sigla, find_nome_lista, is_coalition,
@@ -38,6 +40,25 @@ REQUIRED_FIELDS = (
     "NOME_LISTA","NUM_ORDEM","NOME_CANDIDATO",
     "PARTIDO_PROPONENTE","INDEPENDENTE"
 )
+
+def linearize_document_to_lines(doc_path: str, enable_ia: bool = True) -> List[str]:
+    """Return a list of cleaned text lines extracted from *doc_path*.
+
+    The function normalises whitespace, removes bullet markers and applies
+    ``clean_text`` when ``enable_ia`` is ``True`` (mirroring the previous
+    behaviour of the legacy extractor).
+    """
+
+    raw_text = parse_docx(doc_path)
+    normalised = normalize_whitespace(raw_text)
+    candidate_lines = clean_lines(normalised)
+
+    lines: List[str] = []
+    for raw in candidate_lines:
+        line = clean_text(raw) if enable_ia else raw.strip()
+        if line:
+            lines.append(line)
+    return lines
 
 def _sanitize_row(row: Dict[str, str]) -> Dict[str, str]:
     row["NOME_CANDIDATO"] = clean_text(row.get("NOME_CANDIDATO", ""))

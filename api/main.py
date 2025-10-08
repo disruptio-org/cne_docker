@@ -5,7 +5,11 @@ from pydantic import BaseModel
 from typing import Optional
 import os, time
 
-from extractor.pipeline import extract_to_csv
+from app.extract_pipeline import linearize_document_to_lines, process_document_lines
+from app.learn.infer import predict_rows
+from app.csv_writer import write_cne_csv
+from app.utils_text import sanitize_rows
+from api.extractor.pipeline import infer_dtmnfr_from_path
 from utils.diff import diff_csvs, validate_csv_schema
 
 APP_DATA = os.environ.get("APP_DATA", "/app/data")
@@ -40,6 +44,7 @@ async def extract(
     orgao: Optional[str] = Form(None),
     ord_reset: bool = Form(True),
     enable_ia: bool = Form(True),
+    use_ner: bool = Form(False),
     excel_compat: bool = Query(False),
     encoding: Optional[str] = Query(None),
 ):
@@ -54,22 +59,69 @@ async def extract(
 
     out_csv = os.path.join(APP_DATA, f"extract_{operator}_{ts}.csv")
     csv_encoding = encoding or ("cp1252" if excel_compat else "utf-8-sig")
-    result = extract_to_csv(
-        in_path,
-        out_csv,
-        orgao=orgao,
-        ord_reset=ord_reset,
-        enable_ia=enable_ia,
-        models_dir=MODEL_PATH,
-        encoding=csv_encoding,
-    )
+    lines = linearize_document_to_lines(in_path, enable_ia=enable_ia)
+
+    if use_ner:
+        ner_model_dir = os.path.join(MODEL_PATH, "ner_pt") if MODEL_PATH else "/app/models/ner_pt"
+        rows = predict_rows(lines, model_dir=ner_model_dir)
+    else:
+        rows = process_document_lines(lines)
+        if enable_ia and not rows:
+            fallback_lines = linearize_document_to_lines(in_path, enable_ia=False)
+            rows = process_document_lines(fallback_lines)
+
+    dtmnfr = infer_dtmnfr_from_path(in_path)
+
+    processed_rows = []
+    for row in rows:
+        item = dict(row)
+        for field in (
+            "DTMNFR",
+            "ORGAO",
+            "TIPO",
+            "SIGLA",
+            "SIMBOLO",
+            "NOME_LISTA",
+            "NUM_ORDEM",
+            "NOME_CANDIDATO",
+            "PARTIDO_PROPONENTE",
+            "INDEPENDENTE",
+        ):
+            item.setdefault(field, "")
+        if dtmnfr:
+            item["DTMNFR"] = item.get("DTMNFR") or dtmnfr
+        if orgao:
+            item["ORGAO"] = orgao
+        processed_rows.append(item)
+
+    if ord_reset:
+        counters = {}
+        for item in processed_rows:
+            tipo = str(item.get("TIPO", "")).strip()
+            if tipo not in {"2", "3"}:
+                continue
+            key = (
+                item.get("DTMNFR", ""),
+                item.get("ORGAO", ""),
+                item.get("SIGLA", ""),
+                item.get("NOME_LISTA", ""),
+                tipo,
+            )
+            counters[key] = counters.get(key, 0) + 1
+            item["NUM_ORDEM"] = str(counters[key])
+
+    safe_rows = sanitize_rows(processed_rows)
+    write_cne_csv(safe_rows, out_csv, encoding=csv_encoding)
+
+    orgoes = sorted({row.get("ORGAO", "") for row in safe_rows if row.get("ORGAO")})
+    siglas = sorted({row.get("SIGLA", "") for row in safe_rows if row.get("SIGLA")})
 
     return JSONResponse({
         "input": in_path,
         "output_csv": out_csv,
-        "rows": result.get("rows", 0),
-        "orgoes": result.get("orgoes", []),
-        "siglas": result.get("siglas", [])
+        "rows": len(safe_rows),
+        "orgoes": orgoes,
+        "siglas": siglas
     })
 
 @app.post("/merge")
