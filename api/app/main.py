@@ -3,6 +3,7 @@ from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional
+from pathlib import Path
 import os, time
 
 from .extract_pipeline import linearize_document_to_lines, process_document_lines
@@ -153,10 +154,13 @@ async def extract(
 def merge(req: MergeRequest):
     if not os.path.exists(req.csv_a) or not os.path.exists(req.csv_b):
         raise HTTPException(status_code=400, detail="CSV paths inválidos")
-    out_path = req.out_path or os.path.join(APP_DATA, "final_merged.csv")
+    base_out_dir = Path(APP_DATA)
+    base_out_dir.mkdir(parents=True, exist_ok=True)
+    out_path = Path(req.out_path) if req.out_path else base_out_dir / "final_merged.csv"
+    out_path.parent.mkdir(parents=True, exist_ok=True)
     diffs, final_df = diff_csvs(req.csv_a, req.csv_b)
     final_df.to_csv(out_path, index=False, sep=";", encoding="utf-8")
-    return {"diffs": diffs, "final_csv": out_path, "rows": int(final_df.shape[0])}
+    return {"diffs": diffs, "final_csv": str(out_path), "rows": int(final_df.shape[0])}
 
 @app.post("/validate")
 def validate(req: ValidateRequest):
