@@ -5,11 +5,11 @@ from pydantic import BaseModel
 from typing import Optional
 import os, time
 
-from app.extract_pipeline import linearize_document_to_lines, process_document_lines
-from app.learn.infer import predict_rows
-from app.csv_writer import write_cne_csv
-from app.utils_text import sanitize_rows
-from app.qa import collect_suspect_rows, write_qa_csv
+from .extract_pipeline import linearize_document_to_lines, process_document_lines
+from .learn.infer import predict_rows
+from .csv_writer import write_cne_csv
+from .utils_text import sanitize_rows
+from .qa import collect_suspect_rows, write_qa_csv
 from extractor.pipeline import infer_dtmnfr_from_path
 from utils.diff import diff_csvs, validate_csv_schema
 
