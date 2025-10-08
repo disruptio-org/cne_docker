@@ -26,3 +26,17 @@ Para ensinar o motor de NER, siga sempre o mesmo ciclo. Cada iteração garante 
    - Com o modelo treinado, execute `use_ner --model models/model_XXX --input data/corpus_XXX.jsonl --output outputs/predictions_XXX.csv`.
 
 Seguir estes passos garante que o motor seja ensinado de forma consistente, facilitando auditoria e reprodução dos resultados.
+
+## Run
+
+### Build & Run
+
+```bash
+docker compose -f docker-compose.min.yml up --build -d
+curl http://localhost:8010/health
+
+Extract
+curl -F "file=@data/1503_Almada_441 Listas admitidas ASSEMBLEIA E CAMARA.docx" \
+     -F "operator=A" -F "ord_reset=true" -F "enable_ia=false" \
+     http://localhost:8010/extract
+```
