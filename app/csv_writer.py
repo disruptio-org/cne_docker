@@ -39,13 +39,24 @@ def _export_qa_csv(df: pd.DataFrame, out_path: str) -> str:
     return str(qa_path)
 
 
-def write_cne_csv(rows: List[Dict[str, str]], out_path: str, encoding: str = "utf-8-sig") -> str:
+def write_cne_csv(
+    rows: List[Dict[str, str]],
+    out_path: str,
+    encoding: str = "utf-8-sig",
+    *,
+    excel_compat: bool = False,
+) -> str:
     """Sanitise the provided ``rows`` and export them to ``out_path``.
 
     The resulting CSV uses ``;`` as separator (CNE requirement) and writes
-    UTF-8 with BOM by default so Excel autodetects it correctly.
+    UTF-8 with BOM by default so Excel autodetects it correctly. Passing
+    ``excel_compat=True`` switches the encoding to Windows-1252 for legacy
+    compatibility.
     """
     safe_rows = sanitize_rows(rows)
+
+    if excel_compat:
+        encoding = "cp1252"
 
     df = pd.DataFrame(safe_rows, columns=CNE_COLS)
     df = df.fillna("")
