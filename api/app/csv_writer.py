@@ -38,6 +38,9 @@ def write_cne_csv(
     if excel_compat:
         encoding = "cp1252"
 
+    out_path_obj = Path(out_path)
+    out_path_obj.parent.mkdir(parents=True, exist_ok=True)
+
     df = pd.DataFrame(safe_rows, columns=CNE_COLS)
     df = df.fillna("")
 
@@ -45,5 +48,5 @@ def write_cne_csv(
         if col in df.columns:
             df[col] = df[col].map(clean_text)
 
-    df.to_csv(out_path, sep=";", index=False, encoding=encoding)
-    return out_path
+    df.to_csv(out_path_obj, sep=";", index=False, encoding=encoding)
+    return str(out_path_obj)

@@ -92,6 +92,7 @@ def write_qa_csv(
 
     qa_path = Path(output_csv_path)
     qa_path = qa_path.with_name(f"{qa_path.stem}_qa.csv")
+    qa_path.parent.mkdir(parents=True, exist_ok=True)
 
     suspect_rows = list(suspects) if suspects is not None else collect_suspect_rows(
         rows, metadata=metadata
