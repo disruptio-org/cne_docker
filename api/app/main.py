@@ -16,6 +16,7 @@ from utils.diff import diff_csvs, validate_csv_schema
 
 APP_DATA = os.environ.get("APP_DATA", "/app/data")
 MODEL_PATH = os.environ.get("MODEL_PATH", "/app/models")
+MERGE_OUT_DIR = Path(os.environ.get("MERGE_OUT_DIR", "/app/out"))
 STRICT_TEMPLATES = os.environ.get("STRICT_TEMPLATES", "").lower() in {"1", "true", "yes", "on"}
 
 app = FastAPI(title="CNE On-Prem Extractor (Fixed V2)", version="0.4.0")
@@ -154,7 +155,7 @@ async def extract(
 def merge(req: MergeRequest):
     if not os.path.exists(req.csv_a) or not os.path.exists(req.csv_b):
         raise HTTPException(status_code=400, detail="CSV paths inválidos")
-    base_out_dir = Path(APP_DATA)
+    base_out_dir = MERGE_OUT_DIR
     base_out_dir.mkdir(parents=True, exist_ok=True)
     out_path = Path(req.out_path) if req.out_path else base_out_dir / "final_merged.csv"
     out_path.parent.mkdir(parents=True, exist_ok=True)
