@@ -10,8 +10,8 @@ Corrige:
 
 from typing import Any, Dict, List, Tuple
 from app.utils_text import clean_text
-from api.extractor.pipeline import parse_docx
-from api.extractor.rules import clean_lines, normalize_whitespace
+from extractor.pipeline import parse_docx
+from extractor.rules import clean_lines, normalize_whitespace
 from app.utils_listctx import ListContext, detect_orgao, is_new_list_heading
 from app.utils_party import (
     find_sigla, find_nome_lista, is_coalition,
