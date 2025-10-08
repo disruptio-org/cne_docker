@@ -1,6 +1,8 @@
 services:
   api:
-    build: ./api
+    build:
+      context: .
+      dockerfile: api/Dockerfile
     image: cne/api:fixed-v2
     container_name: cne_api_fixed_v2
     ports:

@@ -10,7 +10,7 @@ from app.learn.infer import predict_rows
 from app.csv_writer import write_cne_csv
 from app.utils_text import sanitize_rows
 from app.qa import collect_suspect_rows, write_qa_csv
-from api.extractor.pipeline import infer_dtmnfr_from_path
+from extractor.pipeline import infer_dtmnfr_from_path
 from utils.diff import diff_csvs, validate_csv_schema
 
 APP_DATA = os.environ.get("APP_DATA", "/app/data")

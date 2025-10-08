@@ -1,5 +1,7 @@
 FROM python:3.11-slim
+
 WORKDIR /app
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libxml2 \
@@ -7,9 +9,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libffi-dev \
     python3-dev \
  && rm -rf /var/lib/apt/lists/*
-COPY requirements.txt /app/requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
+
+COPY api/requirements.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir -r /tmp/requirements.txt
 RUN python -m spacy download pt_core_news_md
-COPY . /app
+
+COPY app /app/app
+COPY api /app
+
 EXPOSE 8000
+
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
